@@ -45,7 +45,6 @@ public class Datasource {
 
     public static final String QUERY_VEHICLE = "SELECT " + COLUMN_VEHICLE_ID + " FROM " +
             TABLE_VEHICLES + " WHERE " + COLUMN_VEHICLE_LICENSE + " = ?";
-
     public static final String QUERY_CUSTOMER_ID = "SELECT " + COLUMN_CUSTOMER_ID + " FROM " + TABLE_CUSTOMERS +
             " WHERE " + COLUMN_CUSTOMER_ID + " =?";
     public static final String QUERY_VEHICLE_ID = "SELECT " + COLUMN_VEHICLE_ID + " FROM " + TABLE_VEHICLES +
@@ -58,7 +57,7 @@ public class Datasource {
             COLUMN_RENTAL_CAR + ", " + COLUMN_RENTAL_CUSTOMER + ") VALUES (?, ?, ?, ?)";
     public static final String DELETE_VEHICLE = "DELETE FROM " + TABLE_VEHICLES + " WHERE " +
             COLUMN_VEHICLE_LICENSE + " = ?";
-    public static final String QUERY_AVAILABLE_CARS = "SELECT * FROM " + TABLE_VEHICLES + " WHERE NOT EXISTS (" +
+    public static final String QUERY_AVAILABLE_VEHICLES = "SELECT * FROM " + TABLE_VEHICLES + " WHERE NOT EXISTS (" +
             "SELECT DISTINCT " + COLUMN_RENTAL_CAR +
             " FROM " + TABLE_RENTALS + " WHERE NOT ( " + COLUMN_RENTAL_START_DATE +
             " > ? OR " + COLUMN_RENTAL_END_DATE + " < ?) AND " + COLUMN_RENTAL_CAR + " = " + COLUMN_VEHICLE_ID + ")";
@@ -72,7 +71,7 @@ public class Datasource {
     private PreparedStatement insertIntoVehicles;
     private PreparedStatement insertIntoRentals;
     private PreparedStatement deleteFromVehicles;
-    private PreparedStatement queryAvailableCar;
+    private PreparedStatement queryAvailableVehicles;
 
     private Connection conn;
 
@@ -85,7 +84,7 @@ public class Datasource {
             queryCustomerID = conn.prepareStatement(QUERY_CUSTOMER_ID);
             queryVehicleID = conn.prepareStatement(QUERY_VEHICLE_ID);
             insertIntoRentals = conn.prepareStatement(INSERT_RENTAL);
-            queryAvailableCar = conn.prepareStatement(QUERY_AVAILABLE_CARS);
+            queryAvailableVehicles = conn.prepareStatement(QUERY_AVAILABLE_VEHICLES);
             return true;
 
         } catch (SQLException e) {
@@ -114,21 +113,24 @@ public class Datasource {
             if (insertIntoRentals != null) {
                 insertIntoRentals.close();
             }
+            if (queryAvailableVehicles != null) {
+                queryAvailableVehicles.close();
+            }
         } catch (SQLException e) {
             System.out.println("Couldn't close connection: " + e.getMessage());
         }
     }
 
-    public List<Vehicle> queryAvailableCar(String startDate, String endDate) throws SQLException, ParseException {
+    public List<Vehicle> queryAvailableVehicles(String startDate, String endDate) throws SQLException, ParseException {
         if (isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
             if (checkDate(startDate, endDate)) {
-                queryAvailableCar.setString(1, endDate);
-                queryAvailableCar.setString(2, startDate);
+                queryAvailableVehicles.setString(1, endDate);
+                queryAvailableVehicles.setString(2, startDate);
             } else {
                 System.out.println("Invalid date range!");
             }
         }
-        try (ResultSet results = queryAvailableCar.executeQuery()) {
+        try (ResultSet results = queryAvailableVehicles.executeQuery()) {
             List<Vehicle> vehicles = new ArrayList<>();
             while (results.next()) {
                 Vehicle vehicle = new Vehicle();
@@ -138,7 +140,8 @@ public class Datasource {
                 vehicle.setNumberOfSeat(results.getInt(INDEX_VEHICLE_SEAT));
                 vehicle.setLicensePlate(results.getString(INDEX_VEHICLE_LICENSE));
                 vehicles.add(vehicle);
-            } return vehicles;
+            }
+            return vehicles;
         } catch (SQLException e) {
             System.out.println("Query failed: " + e.getMessage());
             return null;
@@ -199,13 +202,13 @@ public class Datasource {
     }
 
 
-    private boolean checkValidCarID(String car_id) throws SQLException {
+    private boolean checkValidInputCarID(String car_id) throws SQLException {
         queryVehicleID.setString(1, car_id);
         ResultSet results = queryVehicleID.executeQuery();
         return results.next();
     }
 
-    private boolean checkValidCusID(String cus_id) throws SQLException {
+    private boolean checkValidInputCusID(String cus_id) throws SQLException {
         queryCustomerID.setString(1, cus_id);
         ResultSet results = queryCustomerID.executeQuery();
         return results.next();
@@ -243,6 +246,18 @@ public class Datasource {
         return sdf.parse(startDate).getTime() <= sdf.parse(endDate).getTime();
     }
 
+    private boolean checkAvailableCarID(String starDate, String endDate, int car_id) throws SQLException, ParseException {
+        List<Vehicle> carList = queryAvailableVehicles(starDate, endDate);
+        boolean check = false;
+        for (Vehicle vehicle : carList) {
+            if (vehicle.getCar_id() == car_id) {
+                check = true;
+                break;
+            }
+        }
+        return check;
+    }
+
     public void insertRental(String startDate, String endDate, int car_id, int cus_id) {
         try {
             conn.setAutoCommit(false);
@@ -254,12 +269,16 @@ public class Datasource {
                     System.out.println("Invalid date range!");
                 }
             }
-            if (checkValidCarID(String.valueOf(car_id))) {
-                insertIntoRentals.setInt(3, car_id);
+            if (checkValidInputCarID(String.valueOf(car_id))) { // Check xem dữ liệu người dùng nhập vào có trong database ko
+                if (checkAvailableCarID(startDate, endDate, car_id)) {
+                    insertIntoRentals.setInt(3, car_id);
+                } else {
+                    System.out.println("Invalid Car");
+                }
             } else {
                 System.out.println("No such car id.");
             }
-            if (checkValidCusID(String.valueOf(cus_id))) {
+            if (checkValidInputCusID(String.valueOf(cus_id))) {
                 insertIntoRentals.setInt(4, cus_id);
             } else {
                 System.out.println("No such customer id.");

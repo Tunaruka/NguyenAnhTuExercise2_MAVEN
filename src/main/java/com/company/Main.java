@@ -88,15 +88,15 @@ public class Main {
         String startDate = scanner.nextLine();
         System.out.println("Enter end date: ");
         String endDate = scanner.nextLine();
-        List<Vehicle> vehicles = datasource.queryAvailableCar(startDate, endDate);
+        List<Vehicle> vehicles = datasource.queryAvailableVehicles(startDate, endDate);
         if(vehicles == null) {
-            System.out.println("No vehicle!");
+            System.out.println("No vehicle available!");
         } else {
             System.out.println("Available car list: ");
             System.out.println("----------------------");
             for(Vehicle vehicle : vehicles) {
                 System.out.println("ID: " + vehicle.getCar_id() +
-                        "Brand: " + vehicle.getBrand() +
+                        ", Brand: " + vehicle.getBrand() +
                         ", Model: " + vehicle.getModel() +
                         ", Seat: " + vehicle.getNumberOfSeat() +
                         ", Plate No.: " + vehicle.getLicensePlate());
@@ -106,7 +106,7 @@ public class Main {
         datasource.close();
     }
 
-    private static void registerRental() {
+    private static void registerRental() throws SQLException, ParseException {
         checkConnection();
         System.out.println("Enter start date: ");
         String startDate = scanner.nextLine();
