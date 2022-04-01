@@ -119,9 +119,15 @@ public class Datasource {
         }
     }
 
-    public List<Vehicle> queryAvailableCar(String startDate, String endDate) throws SQLException {
-        queryAvailableCar.setString(1, endDate);
-        queryAvailableCar.setString(2, startDate);
+    public List<Vehicle> queryAvailableCar(String startDate, String endDate) throws SQLException, ParseException {
+        if (isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
+            if (checkDate(startDate, endDate)) {
+                queryAvailableCar.setString(1, endDate);
+                queryAvailableCar.setString(2, startDate);
+            } else {
+                System.out.println("Invalid date range!");
+            }
+        }
         try (ResultSet results = queryAvailableCar.executeQuery()) {
             List<Vehicle> vehicles = new ArrayList<>();
             while (results.next()) {

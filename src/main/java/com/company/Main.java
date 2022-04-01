@@ -4,13 +4,14 @@ import com.company.model.Datasource;
 import com.company.model.Vehicle;
 
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.util.List;
 import java.util.Scanner;
 
 public class Main {
     private static final Datasource datasource = new Datasource();
     private static final Scanner scanner= new Scanner(System.in);
-    public static void main(String[] args) throws SQLException {
+    public static void main(String[] args) throws SQLException, ParseException {
         boolean quit = false;
         printMenu();
         while (!quit){
@@ -81,7 +82,7 @@ public class Main {
         }
     }
 
-    private static void displayAvailableVehicles() throws SQLException {
+    private static void displayAvailableVehicles() throws SQLException, ParseException {
         checkConnection();
         System.out.println("Enter start date: ");
         String startDate = scanner.nextLine();
