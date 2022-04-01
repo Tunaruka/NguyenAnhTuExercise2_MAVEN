@@ -9,9 +9,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class Datasource {
     public static final String DB_NAME = "car_rental.db";
@@ -60,6 +58,10 @@ public class Datasource {
             COLUMN_RENTAL_CAR + ", " + COLUMN_RENTAL_CUSTOMER + ") VALUES (?, ?, ?, ?)";
     public static final String DELETE_VEHICLE = "DELETE FROM " + TABLE_VEHICLES + " WHERE " +
             COLUMN_VEHICLE_LICENSE + " = ?";
+    public static final String QUERY_AVAILABLE_CARS = "SELECT * FROM " + TABLE_VEHICLES + " WHERE NOT EXISTS (" +
+            "SELECT DISTINCT " + COLUMN_RENTAL_CAR +
+            " FROM " + TABLE_RENTALS + " WHERE NOT ( " + COLUMN_RENTAL_START_DATE +
+            " > ? OR " + COLUMN_RENTAL_END_DATE + " < ?) AND " + COLUMN_RENTAL_CAR + " = " + COLUMN_VEHICLE_ID + ")";
 
     private static final String DELIMITER = ",";
     private static final String SEPARATOR = "\n";
@@ -70,6 +72,7 @@ public class Datasource {
     private PreparedStatement insertIntoVehicles;
     private PreparedStatement insertIntoRentals;
     private PreparedStatement deleteFromVehicles;
+    private PreparedStatement queryAvailableCar;
 
     private Connection conn;
 
@@ -82,6 +85,7 @@ public class Datasource {
             queryCustomerID = conn.prepareStatement(QUERY_CUSTOMER_ID);
             queryVehicleID = conn.prepareStatement(QUERY_VEHICLE_ID);
             insertIntoRentals = conn.prepareStatement(INSERT_RENTAL);
+            queryAvailableCar = conn.prepareStatement(QUERY_AVAILABLE_CARS);
             return true;
 
         } catch (SQLException e) {
@@ -112,6 +116,26 @@ public class Datasource {
             }
         } catch (SQLException e) {
             System.out.println("Couldn't close connection: " + e.getMessage());
+        }
+    }
+
+    public List<Vehicle> queryAvailableCar(String startDate, String endDate) throws SQLException {
+        queryAvailableCar.setString(1, endDate);
+        queryAvailableCar.setString(2, startDate);
+        try (ResultSet results = queryAvailableCar.executeQuery()) {
+            List<Vehicle> vehicles = new ArrayList<>();
+            while (results.next()) {
+                Vehicle vehicle = new Vehicle();
+                vehicle.setCar_id(results.getInt(INDEX_VEHICLE_ID));
+                vehicle.setBrand(results.getString(INDEX_VEHICLE_BRAND));
+                vehicle.setModel(results.getString(INDEX_VEHICLE_MODEL));
+                vehicle.setNumberOfSeat(results.getInt(INDEX_VEHICLE_SEAT));
+                vehicle.setLicensePlate(results.getString(INDEX_VEHICLE_LICENSE));
+                vehicles.add(vehicle);
+            } return vehicles;
+        } catch (SQLException e) {
+            System.out.println("Query failed: " + e.getMessage());
+            return null;
         }
     }
 
@@ -168,6 +192,7 @@ public class Datasource {
         }
     }
 
+
     private boolean checkValidCarID(String car_id) throws SQLException {
         queryVehicleID.setString(1, car_id);
         ResultSet results = queryVehicleID.executeQuery();
@@ -182,8 +207,7 @@ public class Datasource {
 
     private static boolean isValidDateFormat(String value) {
         LocalDateTime ldt;
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH);
-
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH);
         try {
             ldt = LocalDateTime.parse(value, formatter);
             String result = ldt.format(formatter);
@@ -209,14 +233,13 @@ public class Datasource {
     }
 
     public boolean checkDate(String startDate, String endDate) throws ParseException {
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         return sdf.parse(startDate).getTime() <= sdf.parse(endDate).getTime();
     }
 
     public void insertRental(String startDate, String endDate, int car_id, int cus_id) {
         try {
             conn.setAutoCommit(false);
-
             if (isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
                 if (checkDate(startDate, endDate)) {
                     insertIntoRentals.setString(1, startDate);
@@ -239,12 +262,9 @@ public class Datasource {
             if (affectedRows == 1) {
                 conn.commit();
                 System.out.println("New rental record was SUCCESSFULLY added!");
-            } else {
-                throw new SQLException("FAILED to add new rental record!");
             }
-
         } catch (Exception e) {
-//            System.out.println("Insert rental exception: " + e.getMessage());
+            System.out.println("Insert rental exception: " + e.getMessage());
             System.out.println("FAILED to add new rental record!");
             try {
                 System.out.println("Performing rollback.");
@@ -270,7 +290,7 @@ public class Datasource {
                 conn.commit();
                 System.out.println("SUCCESSFULLY deleted vehicle!");
             } else {
-                throw new SQLException("The song insert failed");
+                throw new SQLException("Cannot find car with the above license plate.");
             }
         } catch (Exception e) {
             System.out.println("Delete vehicle exception: " + e.getMessage());

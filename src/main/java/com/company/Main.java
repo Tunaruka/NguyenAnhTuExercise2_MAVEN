@@ -3,13 +3,14 @@ package com.company;
 import com.company.model.Datasource;
 import com.company.model.Vehicle;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Scanner;
 
 public class Main {
     private static final Datasource datasource = new Datasource();
     private static final Scanner scanner= new Scanner(System.in);
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException {
         boolean quit = false;
         printMenu();
         while (!quit){
@@ -80,7 +81,29 @@ public class Main {
         }
     }
 
-    private static void displayAvailableVehicles() {}
+    private static void displayAvailableVehicles() throws SQLException {
+        checkConnection();
+        System.out.println("Enter start date: ");
+        String startDate = scanner.nextLine();
+        System.out.println("Enter end date: ");
+        String endDate = scanner.nextLine();
+        List<Vehicle> vehicles = datasource.queryAvailableCar(startDate, endDate);
+        if(vehicles == null) {
+            System.out.println("No vehicle!");
+        } else {
+            System.out.println("Available car list: ");
+            System.out.println("----------------------");
+            for(Vehicle vehicle : vehicles) {
+                System.out.println("ID: " + vehicle.getCar_id() +
+                        "Brand: " + vehicle.getBrand() +
+                        ", Model: " + vehicle.getModel() +
+                        ", Seat: " + vehicle.getNumberOfSeat() +
+                        ", Plate No.: " + vehicle.getLicensePlate());
+            }
+            System.out.println("----------END---------");
+        }
+        datasource.close();
+    }
 
     private static void registerRental() {
         checkConnection();
@@ -123,25 +146,35 @@ public class Main {
         int seat = Integer.parseInt(scanner.nextLine());
         System.out.println("Enter car's license plate:");
         String license = scanner.nextLine();
-
-        datasource.insertVehicle(brand,model,seat,license);
-        datasource.close();
-
+        try {
+            datasource.insertVehicle(brand, model, seat, license);
+            datasource.close();
+        } catch (Exception e) {
+            System.out.println("Cannot delete Vehicle. Error: " + e);
+        }
     }
 
     private static void deleteVehicle() {
         checkConnection();
         System.out.println("Enter license plate of to be deleted car:");
         String license = scanner.nextLine();
-        datasource.deleteVehicle(license);
-        datasource.close();
+        try {
+            datasource.deleteVehicle(license);
+            datasource.close();
+        } catch (Exception e) {
+            System.out.println("Cannot delete Vehicle. Error: " + e);
+        }
     }
 
     private static void exportCSV() {
         checkConnection();
-        datasource.exportCSV();
-        System.out.println("CSV file exported successfully.");
-        datasource.close();
+        try {
+            datasource.exportCSV();
+            System.out.println("CSV file exported successfully.");
+            datasource.close();
+        } catch (Exception e) {
+        System.out.println("Cannot delete Vehicle. Error: " + e);
+        }
     }
 
     private static void importCSV() {}
