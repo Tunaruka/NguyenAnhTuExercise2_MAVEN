@@ -2,8 +2,15 @@
   <library name="sqlite-jdbc-3.36.0.3">
     <CLASSES>
       <root url="jar://$USER_HOME$/Downloads/Compressed/sqlite-jdbc-3.36.0.3.jar!/" />
+      <root url="file://$USER_HOME$/Downloads/Compressed/commons-csv-1.9.0" />
     </CLASSES>
-    <JAVADOC />
-    <SOURCES />
+    <JAVADOC>
+      <root url="file://$USER_HOME$/Downloads/Compressed/commons-csv-1.9.0/apidocs" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="file://$USER_HOME$/Downloads/Compressed/commons-csv-1.9.0" />
+    </SOURCES>
+    <jarDirectory url="file://$USER_HOME$/Downloads/Compressed/commons-csv-1.9.0" recursive="false" />
+    <jarDirectory url="file://$USER_HOME$/Downloads/Compressed/commons-csv-1.9.0" recursive="false" type="SOURCES" />
   </library>
 </component>

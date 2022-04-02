@@ -1,6 +1,9 @@
 package com.company.model;
 
-import java.io.FileWriter;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVRecord;
+
+import java.io.*;
 import java.sql.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -9,7 +12,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 public class Datasource {
     public static final String DB_NAME = "car_rental.db";
@@ -61,6 +66,8 @@ public class Datasource {
             "SELECT DISTINCT " + COLUMN_RENTAL_CAR +
             " FROM " + TABLE_RENTALS + " WHERE NOT ( " + COLUMN_RENTAL_START_DATE +
             " > ? OR " + COLUMN_RENTAL_END_DATE + " < ?) AND " + COLUMN_RENTAL_CAR + " = " + COLUMN_VEHICLE_ID + ")";
+    public static final String RETURN_CAR = "UPDATE " + TABLE_RENTALS + " SET " + COLUMN_RENTAL_END_DATE +
+            " = DATE('now') WHERE " + COLUMN_RENTAL_ID + " = ?";
 
     private static final String DELIMITER = ",";
     private static final String SEPARATOR = "\n";
@@ -72,6 +79,7 @@ public class Datasource {
     private PreparedStatement insertIntoRentals;
     private PreparedStatement deleteFromVehicles;
     private PreparedStatement queryAvailableVehicles;
+    private PreparedStatement returnCar;
 
     private Connection conn;
 
@@ -85,6 +93,7 @@ public class Datasource {
             queryVehicleID = conn.prepareStatement(QUERY_VEHICLE_ID);
             insertIntoRentals = conn.prepareStatement(INSERT_RENTAL);
             queryAvailableVehicles = conn.prepareStatement(QUERY_AVAILABLE_VEHICLES);
+            returnCar = conn.prepareStatement(RETURN_CAR);
             return true;
 
         } catch (SQLException e) {
@@ -116,14 +125,31 @@ public class Datasource {
             if (queryAvailableVehicles != null) {
                 queryAvailableVehicles.close();
             }
+            if (returnCar != null) {
+                returnCar.close();
+            }
         } catch (SQLException e) {
             System.out.println("Couldn't close connection: " + e.getMessage());
         }
     }
 
+    public void updateEndDate(int rental_id) {
+//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+//        LocalDate currentDate = LocalDate.now();
+//        String formattedCurrentDate = currentDate.format(formatter);
+        try {
+            returnCar.setInt(1, rental_id);
+            returnCar.executeUpdate();
+            System.out.println("Successfully return vehicle!");
+        } catch (Exception e) {
+            System.out.println("Update vehicle exception: " + e.getMessage());
+            System.out.println("FAILED to update new vehicle!");
+        }
+    }
+
     public List<Vehicle> queryAvailableVehicles(String startDate, String endDate) throws SQLException, ParseException {
         if (isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
-            if (checkDate(startDate, endDate)) {
+            if (isValidDateRange(startDate, endDate)) {
                 queryAvailableVehicles.setString(1, endDate);
                 queryAvailableVehicles.setString(2, startDate);
             } else {
@@ -201,14 +227,13 @@ public class Datasource {
         }
     }
 
-
-    private boolean checkValidInputCarID(String car_id) throws SQLException {
+    private boolean isValidInputCarID(String car_id) throws SQLException {
         queryVehicleID.setString(1, car_id);
         ResultSet results = queryVehicleID.executeQuery();
         return results.next();
     }
 
-    private boolean checkValidInputCusID(String cus_id) throws SQLException {
+    private boolean isValidInputCusID(String cus_id) throws SQLException {
         queryCustomerID.setString(1, cus_id);
         ResultSet results = queryCustomerID.executeQuery();
         return results.next();
@@ -232,7 +257,6 @@ public class Datasource {
                     String result = lt.format(formatter);
                     return result.equals(value);
                 } catch (DateTimeParseException e2) {
-                    // Debugging purposes
                     // e2.printStackTrace();
                     System.out.println("Invalid date input");
                 }
@@ -241,12 +265,12 @@ public class Datasource {
         return false;
     }
 
-    public boolean checkDate(String startDate, String endDate) throws ParseException {
+    public boolean isValidDateRange(String startDate, String endDate) throws ParseException {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         return sdf.parse(startDate).getTime() <= sdf.parse(endDate).getTime();
     }
 
-    private boolean checkAvailableCarID(String starDate, String endDate, int car_id) throws SQLException, ParseException {
+    private boolean isAvailableCarID(String starDate, String endDate, int car_id) throws SQLException, ParseException {
         List<Vehicle> carList = queryAvailableVehicles(starDate, endDate);
         boolean check = false;
         for (Vehicle vehicle : carList) {
@@ -262,15 +286,15 @@ public class Datasource {
         try {
             conn.setAutoCommit(false);
             if (isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
-                if (checkDate(startDate, endDate)) {
+                if (isValidDateRange(startDate, endDate)) {
                     insertIntoRentals.setString(1, startDate);
                     insertIntoRentals.setString(2, endDate);
                 } else {
                     System.out.println("Invalid date range!");
                 }
             }
-            if (checkValidInputCarID(String.valueOf(car_id))) { // Check xem dữ liệu người dùng nhập vào có trong database ko
-                if (checkAvailableCarID(startDate, endDate, car_id)) {
+            if (isValidInputCarID(String.valueOf(car_id))) {
+                if (isAvailableCarID(startDate, endDate, car_id)) {
                     insertIntoRentals.setInt(3, car_id);
                 } else {
                     System.out.println("Invalid Car");
@@ -278,7 +302,7 @@ public class Datasource {
             } else {
                 System.out.println("No such car id.");
             }
-            if (checkValidInputCusID(String.valueOf(cus_id))) {
+            if (isValidInputCusID(String.valueOf(cus_id))) {
                 insertIntoRentals.setInt(4, cus_id);
             } else {
                 System.out.println("No such customer id.");
@@ -329,9 +353,7 @@ public class Datasource {
         String HEADER = ("brand, model, number_of_seat, license_plate");
         try {
             file = new FileWriter("src\\main\\resources\\Vehicles.csv");
-            //Add header
             file.append(HEADER);
-            //Add a new line after the header
             file.append(SEPARATOR);
             for (Vehicle vehicle : vehicles) {
                 //file.append(String.valueOf(vehicle.getCar_id()));
@@ -351,8 +373,17 @@ public class Datasource {
         }
     }
 
-    public void importCSV() {
-
+    public void importCSV() throws IOException {
+        final Reader in = new FileReader("src\\main\\resources\\Vehicles-update.csv");
+        final Iterable<CSVRecord> records = CSVFormat.EXCEL.builder().setHeader().build().parse(in);
+        for (final CSVRecord record : records) {
+            String brand = record.get(0);
+            String model = record.get(1);
+            int seat = Integer.parseInt(record.get(2));
+            String license = record.get(3);
+            insertVehicle(brand,model,seat,license);
+        }
+        System.out.println("---------New data UPDATED---------");
     }
 
 

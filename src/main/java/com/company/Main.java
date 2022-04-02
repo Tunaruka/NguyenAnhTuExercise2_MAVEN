@@ -10,11 +10,12 @@ import java.util.Scanner;
 
 public class Main {
     private static final Datasource datasource = new Datasource();
-    private static final Scanner scanner= new Scanner(System.in);
+    private static final Scanner scanner = new Scanner(System.in);
+
     public static void main(String[] args) throws SQLException, ParseException {
         boolean quit = false;
         printMenu();
-        while (!quit){
+        while (!quit) {
             System.out.println("Choose action (0-9): (9 to print menu)");
             char choice = scanner.next().charAt(0);
             scanner.nextLine();
@@ -63,8 +64,8 @@ public class Main {
         }
     }
 
-    private static void printMenu(){
-        System.out.println( "1 - Display list of vehicles available for rental in a specified time period. \n" +
+    private static void printMenu() {
+        System.out.println("1 - Display list of vehicles available for rental in a specified time period. \n" +
                 "2 - Register new rental of a vehicle\n" +
                 "3 - Return a rented vehicle\n" +
                 "4 - Display the list of all vehicles in the fleet\n" +
@@ -77,7 +78,7 @@ public class Main {
     }
 
     public static void checkConnection() {
-        if(!datasource.open()) {
+        if (!datasource.open()) {
             System.out.println("Can't open datasource");
         }
     }
@@ -89,12 +90,12 @@ public class Main {
         System.out.println("Enter end date: ");
         String endDate = scanner.nextLine();
         List<Vehicle> vehicles = datasource.queryAvailableVehicles(startDate, endDate);
-        if(vehicles == null) {
+        if (vehicles == null) {
             System.out.println("No vehicle available!");
         } else {
             System.out.println("Available car list: ");
             System.out.println("----------------------");
-            for(Vehicle vehicle : vehicles) {
+            for (Vehicle vehicle : vehicles) {
                 System.out.println("ID: " + vehicle.getCar_id() +
                         ", Brand: " + vehicle.getBrand() +
                         ", Model: " + vehicle.getModel() +
@@ -106,7 +107,7 @@ public class Main {
         datasource.close();
     }
 
-    private static void registerRental() throws SQLException, ParseException {
+    private static void registerRental() {
         checkConnection();
         System.out.println("Enter start date: ");
         String startDate = scanner.nextLine();
@@ -116,23 +117,29 @@ public class Main {
         int carId = Integer.parseInt(scanner.nextLine());
         System.out.println("Enter customer id:");
         int cusId = Integer.parseInt(scanner.nextLine());
-        datasource.insertRental(startDate,endDate,carId,cusId);
+        datasource.insertRental(startDate, endDate, carId, cusId);
         datasource.close();
     }
 
-    private static void returnVehicle() {}
+    private static void returnVehicle() {
+        checkConnection();
+        System.out.println("Enter rental id: ");
+        int rentalId = Integer.parseInt(scanner.nextLine());
+        datasource.updateEndDate(rentalId);
+        datasource.close();
+    }
 
     private static void displayAllVehicles() {
         checkConnection();
         List<Vehicle> vehicles = datasource.queryAllVehicles();
-        if(vehicles == null) {
+        if (vehicles == null) {
             System.out.println("No vehicle!");
         } else {
-        for(Vehicle vehicle : vehicles) {
-            System.out.println("Brand: " + vehicle.getBrand() +
-                    ", Model: " + vehicle.getModel() +
-                    ", Seat: " + vehicle.getNumberOfSeat() +
-                    ", Plate No.: " + vehicle.getLicensePlate());
+            for (Vehicle vehicle : vehicles) {
+                System.out.println("Brand: " + vehicle.getBrand() +
+                        ", Model: " + vehicle.getModel() +
+                        ", Seat: " + vehicle.getNumberOfSeat() +
+                        ", Plate No.: " + vehicle.getLicensePlate());
             }
         }
     }
@@ -174,10 +181,17 @@ public class Main {
             System.out.println("CSV file exported successfully.");
             datasource.close();
         } catch (Exception e) {
-        System.out.println("Cannot delete Vehicle. Error: " + e);
+            System.out.println("Cannot export Vehicle list. Error: " + e);
         }
     }
 
-    private static void importCSV() {}
+    private static void importCSV() {
+        checkConnection();
+        try {
+            datasource.importCSV();
+        } catch (Exception e) {
+            System.out.println("Cannot import Vehicle list. Error: " + e);
+        }
+    }
 
 }
