@@ -89,22 +89,26 @@ public class Main {
         String startDate = scanner.nextLine();
         System.out.println("Enter end date: ");
         String endDate = scanner.nextLine();
-        List<Vehicle> vehicles = datasource.queryAvailableVehicles(startDate, endDate);
-        if (vehicles == null) {
-            System.out.println("No vehicle available!");
-        } else {
-            System.out.println("Available car list: ");
-            System.out.println("----------------------");
-            for (Vehicle vehicle : vehicles) {
-                System.out.println("ID: " + vehicle.getCar_id() +
-                        ", Brand: " + vehicle.getBrand() +
-                        ", Model: " + vehicle.getModel() +
-                        ", Seat: " + vehicle.getNumberOfSeat() +
-                        ", Plate No.: " + vehicle.getLicensePlate());
+        try {
+            List<Vehicle> vehicles = datasource.queryAvailableVehicles(startDate, endDate);
+            if (vehicles == null) {
+                System.out.println("No vehicle available!");
+            } else {
+                System.out.println("Available car list: ");
+                System.out.println("----------------------");
+                for (Vehicle vehicle : vehicles) {
+                    System.out.println("ID: " + vehicle.getCar_id() +
+                            ", Brand: " + vehicle.getBrand() +
+                            ", Model: " + vehicle.getModel() +
+                            ", Seat: " + vehicle.getNumberOfSeat() +
+                            ", Plate No.: " + vehicle.getLicensePlate());
+                }
+                System.out.println("----------END---------");
             }
-            System.out.println("----------END---------");
+            datasource.close();
+        } catch (Exception e) {
+            System.out.println("Unable to show available vehicles: " + e);
         }
-        datasource.close();
     }
 
     private static void registerRental() {
@@ -117,16 +121,24 @@ public class Main {
         int carId = Integer.parseInt(scanner.nextLine());
         System.out.println("Enter customer id:");
         int cusId = Integer.parseInt(scanner.nextLine());
-        datasource.insertRental(startDate, endDate, carId, cusId);
-        datasource.close();
+        try {
+            datasource.insertRental(startDate, endDate, carId, cusId);
+            datasource.close();
+        } catch (Exception e) {
+            System.out.println("Unable to register vehicle: " + e);
+        }
     }
 
     private static void returnVehicle() {
         checkConnection();
         System.out.println("Enter rental id: ");
         int rentalId = Integer.parseInt(scanner.nextLine());
-        datasource.updateEndDate(rentalId);
-        datasource.close();
+        try {
+            datasource.updateEndDate(rentalId);
+            datasource.close();
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
     }
 
     private static void displayAllVehicles() {
@@ -158,7 +170,7 @@ public class Main {
             datasource.insertVehicle(brand, model, seat, license);
             datasource.close();
         } catch (Exception e) {
-            System.out.println("Cannot delete Vehicle. Error: " + e);
+            System.out.println("Cannot Add Vehicle. Error: " + e);
         }
     }
 
